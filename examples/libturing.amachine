@@ -1,9 +1,9 @@
-#( Bibliothèque de m-fonctions commune à beaucoup de machines de Turing, trouvées dans "On Computable Numbers, with an Application to the Entscheidungsproblem (1936)"
-#( Il est implicite que chaque "cellule" est représenté par deux cellule, la première contient le symbole, la seconde un élément de contrôle
+#) Bibliothèque de m-fonctions commune à beaucoup de machines de Turing, trouvées dans "On Computable Numbers, with an Application to the Entscheidungsproblem (1936)"
+#) Il est implicite que chaque "cellule" est représenté par deux cellule, la première contient le symbole, la seconde un élément de contrôle
 
-#( m-fonctions utilisées par Turing
+#) m-fonctions utilisées par Turing
 
-#( Trouve le premier _a puis ->_S. Sinon, va à la fin et ->_B
+#) Trouve le premier _a puis ->_S. Sinon, va à la fin et ->_B
 
 F(_S, _B, _a)
   'e  <- F1(_S, _B, _a)
@@ -19,19 +19,19 @@ F2(_S, _B, _a)
       -> _B
   ... -> F1(_S, _B, _a)
 
-#( Efface le premier _a puis ->_S, sinon, va à la fin et ->_B
+#) Efface le premier _a puis ->_S, sinon, va à la fin et ->_B
 E(_S, _B, _a)
   ... F(E1(_S, _B, _a), _B, _a)
 
 E1(_S, _B, _a)
   ... P:  _S
 
-#( Efface tous le _a, va à la fin et ->_B
+#) Efface tous le _a, va à la fin et ->_B
 E(_B, _a)
   ... E(E(_B, _a), _B, _a)
 
 
-#( Écrit _b à la fin, puis ->_S
+#) Écrit _b à la fin, puis ->_S
 PE(_S, _b)
   ... F(PE1(_S, _B), _S, 'e)
 
@@ -46,35 +46,35 @@ R(_S)
   ... -> _S
 
 
-#( Trouve le premier _a, puis se place une cellule avant/après
+#) Trouve le premier _a, puis se place une cellule avant/après
 F'(_S, _B, _a)
   ... F(L(_S), _B, _a)
 
 F''(_S, _B, _a)
   ... F(R(_S), _B, _a)
 
-#( Trouve la première cellule marquée par _a, et écrit la même valeur à la fin
+#) Trouve la première cellule marquée par _a, et écrit la même valeur à la fin
 C(_S, _B, _a)
   ... F'(C1(_S), _B, _a)
 
 C1(_A)
   _b PE(_S, _b)
 
-#( Recopie, dans l'ordre, tous les symboles marqués par _a à la fin, enlève le marquage, puis ->_S
+#) Recopie, dans l'ordre, tous les symboles marqués par _a à la fin, enlève le marquage, puis ->_S
 CE(_S, _B, _a)
   ... C(E(_S, _B, _a), _B, A)
 
 CE(_B, _a)
   ... CE(CE(_B, _a), _B, _a)
 
-#( Remplace le premier _a par _b puis ->_S. Sinon, ->_B
+#) Remplace le premier _a par _b puis ->_S. Sinon, ->_B
 RE(_S, _B, _a, _b)
   ... F(RE1(_S, _B, _a, _b), _B, _a)
 
 RE1(_S, _B, _a, _b)
   ... P:_b  _S
 
-#( Remplace _a pr _b, puis ->_B
+#) Remplace _a pr _b, puis ->_B
 RE(_B, _a, _b)
   ... RE(RE(_B, _a, _b), _B, _a, _b)
 
@@ -86,7 +86,7 @@ CR(_B, _a)
   ... CR(CR(_B, _a), RE(_B, a, _a), _a)
 
 
-#( Compare les premiers symboles _a et _b. S'ils sont égaux, ->_S, sinon ->_A. Si aucun des deux symboles n'est trouvé, ->_G
+#) Compare les premiers symboles _a et _b. S'ils sont égaux, ->_S, sinon ->_A. Si aucun des deux symboles n'est trouvé, ->_G
 CP(_S, _A, _G, _a, _b)
   ... F'(CP1(_S, _A, _b), F(_A, _G, _b), _a)
 
@@ -97,18 +97,18 @@ CP2(_S, _A, _g)
   _g  _S
   ... _A
 
-#( Pareil que CP, mais en effaçant la première marque
+#) Pareil que CP, mais en effaçant la première marque
 CPE(_S, _A, _G, _a, _b)
   ... CP(E(E(_S, _S, _b), _S, _a), _A, _G, _a, _b)
 
-#( Compare la séquence de symboles marqués par _a et _b. Si elle est égale (de même longueur et mêmes symboles) ->_G sinon _A. Certains marquage sont éffacé, on ne peut donc plus s'y fier après.
+#) Compare la séquence de symboles marqués par _a et _b. Si elle est égale (de même longueur et mêmes symboles) ->_G sinon _A. Certains marquage sont éffacé, on ne peut donc plus s'y fier après.
 CPE(_A, _G, _a, _b)
   ... CPE(CPE(_A, _G, _a, _b), _A, _G, _a, _b)
 
 
 
 
-#( Trouve le dernier symbol de la bande
+#) Trouve le dernier symbol de la bande
 Q(_S)
       ->  Q1(_S)
   ... ->  Q(_S)
@@ -117,26 +117,26 @@ Q1(_S)
           _S
   ... ->  Q1(_S)
 
-#( Trouve le dernier _a de la bande
+#) Trouve le dernier _a de la bande
 Q(_S, _a)
-  ... Q(Q1(_S, _a))   #( On va à la fin de la bande
+  ... Q(Q1(_S, _a))   #) On va à la fin de la bande
 
 Q1(_S, _a)
   _a      _S
-  ... <-  Q1(_S, _a)  #( ...Puis on cherche le premier en partant de la fin (Problem si pas de _a ?)
+  ... <-  Q1(_S, _a)  #) ...Puis on cherche le premier en partant de la fin (Problem si pas de _a ?)
 
-#( Écrit _a et _b à la fin
+#) Écrit _a et _b à la fin
 PE2(_S, _a, _b)
   ... PE(PE(_S, _b), _a)
 
-#( Copie les symbole marqués par _a, puis _b (puis par _g) à la fin, en effaçant les marquages.
+#) Copie les symbole marqués par _a, puis _b (puis par _g) à la fin, en effaçant les marquages.
 CE2(_B, _a, _b)
   ... CE(CE(_B, _b), _a)
 
 CE3(_B, _a, _b, _g)
   ... CE(CE2(_B, _b, _g), _a)
 
-#( Efface tous les marquages de la bande
+#) Efface tous les marquages de la bande
 E(_S)
   'e  -> E1(_S)
   ... <- E(S)

@@ -1,4 +1,4 @@
-# Machine de Turing universelle décrite dans "On Computable Numbers, with an Application to the Entscheidungsproblem (1936)"
+#) Machine de Turing universelle décrite dans "On Computable Numbers, with an Application to the Entscheidungsproblem (1936)"
 
 include(libturing)
 

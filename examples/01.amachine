@@ -1,4 +1,4 @@
-#( Machine de Turing universelle décrite dans "On Computable Numbers, with an Application to the Entscheidungsproblem (1936)"
+#) Machine qui écrit alternativement de 1 et de 0
 
 include(libturing)
 
