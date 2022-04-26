@@ -1,0 +1,17 @@
+#( Machine de Turing universelle décrite dans "On Computable Numbers, with an Application to the Entscheidungsproblem (1936)"
+
+include(libturing)
+
+symbols
+  0
+  1
+
+init
+  A
+
+A
+  ... P:0 -> B
+
+B
+  ... P:1 -> A
+  
