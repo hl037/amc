@@ -74,7 +74,7 @@ am_state
   ;
 
 m_function
-  : (T_STATE_NAME | STATE_NAME) '(' WS? name WS? (',' WS? name WS?)* ')'
+  : STATE_NAME '(' WS? name WS? (',' WS? name WS?)* ')'
   ;
 
 symbol

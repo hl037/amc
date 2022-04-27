@@ -563,9 +563,7 @@ class ASTBuilder(amachineVisitor):
 
   def visitM_function(self, ctx:amachineParser.M_functionContext):
     args = super().visitM_function(ctx)
-    s = ctx.T_STATE_NAME()
-    if s is None :
-      s = ctx.STATE_NAME()
+    s = ctx.STATE_NAME()
     return ASTMFunctionReference(str(s), args),
     
   def visitSymbol(self, ctx:amachineParser.SymbolContext):
