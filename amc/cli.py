@@ -6,7 +6,7 @@ from .parsing.ast import ASTBuilder
 from .parsing.amachineParser import amachineParser
 from .parsing.ast import ASTBuilder, PrettyPrinter
 
-from . import parse
+from . import parse, buildAST, buildIR
 
 
 @click.group()
@@ -15,7 +15,8 @@ def main():
 
 @main.command(name="pp")
 @click.argument('input', type=click.Path('r'))
-def pp(input):
+@click.option('--debug', '-g', is_flag=True)
+def pp(input, debug):
   path = Path(input).resolve()
   try :
     with open(path, 'r') as f :
@@ -25,12 +26,14 @@ def pp(input):
     pp = PrettyPrinter(sys.stdout)
     ast.prettyprint(pp)
   except :
-    #import pdb; pdb.xpm()
+    if debug :
+      import pdb; pdb.xpm()
     raise
   
 @main.command(name="ast")
 @click.argument('input', type=click.Path('r'))
-def ast(input):
+@click.option('--debug', '-g', is_flag=True)
+def ast(input, debug):
   path = Path(input).resolve()
   try :
     with open(path, 'r') as f :
@@ -41,8 +44,28 @@ def ast(input):
     ast.print_ast(pp)
     pp.nl()
   except :
-    #import pdb; pdb.xpm()
+    if debug :
+      import pdb; pdb.xpm()
     raise
+
+@main.command(name='compile-python')
+@click.argument('input', type=click.Path('r'))
+@click.option('--debug', '-g', is_flag=True)
+def compilePython(input, debug):
+  path = Path(input).resolve()
+  try :
+    with open(path, 'r') as f :
+      m = buildIR(f, path)
+    from .targets.python import PythonTarget
+    t = PythonTarget()
+    t.dump(m, sys.stdout)
+  except :
+    if debug :
+      import pdb; pdb.xpm()
+    raise
+
+
+  
   
   
 

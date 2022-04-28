@@ -71,6 +71,14 @@ class ASTNode(object):
   def print_ast(self, pp:PrettyPrinter):
     raise NotImplementedError()
 
+  def __repr__(self):
+    pp = PrettyPrinter()
+    self.print_ast(pp)
+    pp.nl()
+    return pp.output.getvalue()
+
+  __str__ = __repr__
+
 class ASTAbstractSymbol(ASTNode):
   """
   Un symbol ou la notion de case "vide" (fin de la bande)
@@ -96,12 +104,20 @@ class ASTSymbol(ASTAbstractSymbol):
   def print_ast(self, pp:PrettyPrinter):
     pp.write(f'ASTSymbol({self.name})')
 
+  def is_generic(self):
+    return self.name != '_' and self.name.startswith('_')
+
 class ASTNoSymbol(ASTAbstractSymbol):
+  def __init__(self):
+    self.name = None
   def prettyprint(self, pp:PrettyPrinter):
     pass # Le symbol vide est représenté par l'absence de caractère
 
   def print_ast(self, pp:PrettyPrinter):
     pp.write(f'ASTNoSymbol()')
+
+  def is_generic(self):
+    return False
 
 
 class ASTInclude(ASTNode):
@@ -227,6 +243,7 @@ class ASTMFunctionReference(ASTAbstractStateReference):
   def __init__(self, name:str, args:list[ASTAbstractStateReference|ASTSymbol]):
     self.name = name
     self.args = args
+    self.signature = tuple( ASTMFunctionDecl.ARG_SYMBOL if isinstance(a, ASTSymbol) else ASTMFunctionDecl.ARG_STATE for a in args )
 
   def prettyprint(self, pp:PrettyPrinter):
     pp.write(self.name)
@@ -256,6 +273,7 @@ class ASTStateReference(ASTAbstractStateReference):
   """
   def __init__(self, name:str):
     self.name = name
+    self.signature = None
 
   def prettyprint(self, pp:PrettyPrinter):
     pp.write(self.name)
@@ -263,18 +281,7 @@ class ASTStateReference(ASTAbstractStateReference):
   def print_ast(self, pp:PrettyPrinter):
     pp.write(f'ASTStateReference({self.name})')
 
-class ASTAbstractRule(ASTNode):
-  """
-  Une règle d'un état (actions selon le symbole de la bande). Peut être soit une règle directe, soit une règle générique
-  """
-  def prettyprint(self, pp0:PrettyPrinter, pp1:PrettyPrinter=None, pp2:PrettyPrinter=None):
-    if pp1 is None :
-      pp1 = pp0
-    if pp2 is None :
-      pp2 = pp0
-    self._prettyprint(pp0, pp1, pp2)
-
-class ASTRule(ASTAbstractRule):
+class ASTRule(ASTNode):
   """
   Une règle directe
   """
@@ -294,6 +301,13 @@ class ASTRule(ASTAbstractRule):
     self.final_state.prettyprint(pp2)
     pp2.nl()
 
+  def prettyprint(self, pp0:PrettyPrinter, pp1:PrettyPrinter=None, pp2:PrettyPrinter=None):
+    if pp1 is None :
+      pp1 = pp0
+    if pp2 is None :
+      pp2 = pp0
+    self._prettyprint(pp0, pp1, pp2)
+    
   def print_ast(self, pp:PrettyPrinter):
     pp.write(f'ASTRule(')
     pp.nl()
@@ -311,44 +325,7 @@ class ASTRule(ASTAbstractRule):
     pp<<1
     pp.write(')')
 
-class ASTGenericRule(ASTNode):
-  """
-  Une règle générique, par défaut, ou qui capture le symbol
-  """
-  def __init__(self, symbol_name:ASTSymbol, actions:list[ASTAbstractAction], final_state:ASTAbstractStateReference):
-    self.symbol_name = symbol_name
-    self.actions = actions
-    self.final_state = final_state
-
-  def _prettyprint(self, pp0:PrettyPrinter, pp1:PrettyPrinter, pp2:PrettyPrinter):
-    if self.symbol_name :
-      self.symbol.prettyprint(pp0)
-      pp0.ws()
-    if self.actions :
-      for a in self.actions :
-        a.prettyprint(pp1)
-        pp1.ws()
-    self.final_state.prettyprint(pp2)
-    pp2.nl()
-
-  def print_ast(self, pp:PrettyPrinter):
-    pp.write(f'ASTGenericRule(')
-    pp.nl()
-    pp>>1
-    if self.symbol :
-      self.symbol.print_ast(pp)
-      pp.write(',')
-      pp.nl()
-    for a in self.actions :
-      a.print_ast(pp)
-      pp.write(',')
-      pp.nl()
-    self.final_state.print_ast(pp)
-    pp.nl()
-    pp<<1
-    pp.write(')')
-
-def _printrules(rules:list[ASTAbstractRule], pp:PrettyPrinter):
+def _printrules(rules:list[ASTRule], pp:PrettyPrinter):
   if pp.align :
     pps = [ (pp.buffer(), pp.buffer(), pp.buffer()) for _ in rules ]
     for r, ppargs in zip(rules, pps) :
@@ -412,6 +389,7 @@ class ASTStateDecl(ASTNode):
   def __init__(self, name:str, rules:list[ASTRule]):
     self.name = name
     self.rules = rules
+    self.signature = None
     
   def prettyprint(self, pp:PrettyPrinter):
     pp.write(self.name)
@@ -460,6 +438,11 @@ class ASTBuilder(amachineVisitor):
   """
   Build and ast from a parsetree
   """
+  @classmethod
+  def build(cls, parsetree, base_path:Path):
+    builder = cls(base_path)
+    return builder.visit(parsetree)
+
   def __init__(self, base_path:Path):
     self.base_path = base_path
 
