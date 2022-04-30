@@ -85,6 +85,10 @@ class ASTAbstractSymbol(ASTNode):
   """
   pass
 
+def is_generic(a:str):
+  return a == '...' or (a != '_' and a.startswith('_'))
+
+
 class ASTSymbol(ASTAbstractSymbol):
   """
   Un symbol (cette classe permet de gérer les parenthèse et les backslash)
@@ -93,10 +97,14 @@ class ASTSymbol(ASTAbstractSymbol):
     self.name = self.unescape(escaped_name)
 
   def escape(self, n:str):
-    return n.replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
+    if n and n[0].isupper() :
+      n = '\\' + n
+    return n.replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)').replace(',', '\\,')
 
   def unescape(self, n:str):
-    return n.replace('\\\\', '\\$').replace('\\(', '(').replace('\\)', ')').replace('\\$', '\\')
+    if n.startswith('\\') :
+      n = n[1:]
+    return n.replace('\\\\', '\\$').replace('\\(', '(').replace('\\)', ')').replace('\\,', ',').replace('\\$', '\\')
 
   def prettyprint(self, pp:PrettyPrinter):
     pp.write(self.name)
@@ -104,18 +112,27 @@ class ASTSymbol(ASTAbstractSymbol):
   def print_ast(self, pp:PrettyPrinter):
     pp.write(f'ASTSymbol({self.name})')
 
+  @staticmethod
+  def create(n:str):
+    if n == '\\0' :
+      return ASTNoSymbol()
+    else :
+      return ASTSymbol(n)
+
+  @property
   def is_generic(self):
-    return self.name != '_' and self.name.startswith('_')
+    return is_generic(self.name)
 
 class ASTNoSymbol(ASTAbstractSymbol):
   def __init__(self):
-    self.name = None
+    self.name = ''
   def prettyprint(self, pp:PrettyPrinter):
     pass # Le symbol vide est représenté par l'absence de caractère
 
   def print_ast(self, pp:PrettyPrinter):
     pp.write(f'ASTNoSymbol()')
 
+  @property
   def is_generic(self):
     return False
 
@@ -240,10 +257,10 @@ class ASTMFunctionReference(ASTAbstractStateReference):
   """
   Une référence vers une m-fonction
   """
-  def __init__(self, name:str, args:list[ASTAbstractStateReference|ASTSymbol]):
+  def __init__(self, name:str, args:list[ASTAbstractStateReference|ASTAbstractSymbol]):
     self.name = name
     self.args = args
-    self.signature = tuple( ASTMFunctionDecl.ARG_SYMBOL if isinstance(a, ASTSymbol) else ASTMFunctionDecl.ARG_STATE for a in args )
+    self.signature = tuple( ASTMFunctionDecl.ARG_SYMBOL if isinstance(a, ASTAbstractSymbol) else ASTMFunctionDecl.ARG_STATE for a in args )
 
   def prettyprint(self, pp:PrettyPrinter):
     pp.write(self.name)
@@ -346,11 +363,12 @@ class ASTMFunctionDecl(ASTNode):
   """
   ARG_STATE = 0
   ARG_SYMBOL = 1
-  def __init__(self, name:str, args:list[ASTAbstractStateReference|ASTSymbol], rules:list[ASTRule]):
+  def __init__(self, name:str, args:list[ASTAbstractStateReference|ASTAbstractSymbol], rules:list[ASTRule]):
     self.name = name
     self.args = args
     self.rules = rules
-    self.signature = tuple( self.ARG_SYMBOL if isinstance(a, ASTSymbol) else self.ARG_STATE for a in args )
+    self.signature = tuple( self.ARG_SYMBOL if isinstance(a, ASTAbstractSymbol) else self.ARG_STATE for a in args )
+    self.state_ctx = { a.name for a in args if isinstance(a, ASTAbstractStateReference) }
 
   def prettyprint(self, pp:PrettyPrinter):
     pp.write(self.name)
@@ -390,6 +408,7 @@ class ASTStateDecl(ASTNode):
     self.name = name
     self.rules = rules
     self.signature = None
+    self.state_ctx = set()
     
   def prettyprint(self, pp:PrettyPrinter):
     pp.write(self.name)
@@ -471,7 +490,7 @@ class ASTBuilder(amachineVisitor):
     return ASTSymbols(symbols),
 
   def visitSymbol_decl(self, ctx:amachineParser.Symbol_declContext):
-    return ASTSymbol(str(ctx.SYMBOL_NAME())),
+    return ASTSymbol.create(str(ctx.SYMBOL_NAME())),
 
   def visitInitial(self, ctx:amachineParser.InitialContext):
     ref, = super().visitInitial(ctx)
@@ -514,7 +533,7 @@ class ASTBuilder(amachineVisitor):
       return ASTSymbol(str(s)),
     s = ctx.SYMBOL_NAME()
     if s :
-      return ASTSymbol(str(s)),
+      return ASTSymbol.create(str(s)),
     return ASTNoSymbol(),
   
   def visitAm_state_rule_actions(self, ctx:amachineParser.Am_state_rule_actionsContext):
@@ -553,7 +572,7 @@ class ASTBuilder(amachineVisitor):
     s = ctx.T_SYMBOL_NAME()
     if s is None :
       s = ctx.SYMBOL_NAME()
-    return ASTSymbol(str(s)),
+    return ASTSymbol.create(str(s)),
 
 
 

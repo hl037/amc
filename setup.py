@@ -19,7 +19,7 @@ LONG_DESC = read_file('README.md') + '\n\n' + read_file('HISTORY.md')
 
 setup(
     name='amc',
-    version='0.1.dev0',
+    version='1.0',
     description='',
     long_description=LONG_DESC,
     long_description_content_type='text/markdown',
@@ -32,14 +32,12 @@ setup(
     include_package_data=True,
     zip_safe=False,
     install_requires=['antlr4-python3-runtime>=4.10', 'click>=7.0'],
-    extras_require=None,
+    extras_require=['pdbpp'],
+    tests_require=['pytest', 'pytest-cov', 'coverage'],
     entry_points={
       'console_scripts':[
         'amc=amc.cli:main',
       ]
     },
-    #package_data={
-    #  'module' : ['module/path/to/data', 'path/to/glob/*'],
-    #},
     classifiers=[],
 )

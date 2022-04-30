@@ -1,6 +1,6 @@
 #) Machine qui écrit alternativement de 1 et de 0
 
-include(libturing)
+include(libstd)
 
 symbols
   0

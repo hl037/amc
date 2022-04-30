@@ -1,0 +1,126 @@
+
+GOStart(_S)
+  ... <- GOStart(_S)
+      -> _S
+
+GOEnd(_S)
+  ... -> GOEnd(_S)
+         _S
+
+GOEnd2(_S)
+  ... -> -> GOEnd(_S)
+            _S
+
+GONext(_a, _S)
+  ... -> GONext(_a, _S)
+  _a     _S
+
+GOPrev(_a, _S)
+  ... <- GOPrev(_a, _S)
+  _a     _S
+
+Left(_S)
+  ... <- _S
+
+Right(_S)
+  ... -> _S
+
+Print(_a, _S)
+  ... P:_a _S
+
+Print'(_a, _S)
+  ... P:_a -> _S
+
+Erase(_S)
+  ... P: _S
+  
+Erase'(_S)
+  ... P: -> _S
+  
+Erase"(_S)
+  ... P: <- _S
+
+GONext'(_a, _S)
+  ... GONext(_a, Right(_S))
+  
+GOPrev'(_a, _S)
+  ... GOPrev(_a, Right(_S))
+  
+GONext"(_a, _S)
+  ... GONext(_a, Left(_S))
+  
+GOPrev"'(_a, _S)
+  ... GOPrev(_a, Left(_S))
+
+Decr(_S)
+  9 P:8 _S
+  8 P:7 _S
+  7 P:6 _S
+  6 P:5 _S
+  5 P:4 _S
+  4 P:2 _S
+  3 P:2 _S
+  2 P:1 _S
+  1 P:0 _S
+  0 P:0 _S
+  ...   _S
+  
+Incr(_S)
+  9 P:9 _S
+  8 P:9 _S
+  7 P:8 _S
+  6 P:7 _S
+  5 P:6 _S
+  4 P:5 _S
+  2 P:4 _S
+  2 P:3 _S
+  1 P:2 _S
+  0 P:0 _S
+  ...   _S
+
+#) Copie tous les symboles de la position jusqu'à la première case vide vers la marque _m, en utilisant la marque _o temporairement (il ne doit pas y avoir de _o entre la tête et _m)
+CPM(_o, _m, _S)
+  _a P:_o -> GONext(_m, CPM1(_a, _o, _m, _S))
+             _S
+
+CPM1(_a, _o, _m, _S)
+  _m P:_a -> P:_m GOPrev(_o, CPM2(_o, _m, _S))
+
+CPM2(_o, _m, _S)
+  _o P: -> CPM(_o, _m, _S)
+  
+#) Copie tous les symboles de la position jusqu'à _e vers la marque _m, en utilisant la marque _o temporairement (il ne doit pas y avoir de _o entre la tête et _m)
+CPM(_e, _o, _m, _S)
+  _a P:_o -> GONext(_m, CPM1(_e, _a, _o, _m, _S))
+  _e         _S
+
+CPM1(_e, _a, _o, _m, _S)
+  _m P:_a -> P:_m GOPrev(_o, CPM2(_e, _o, _m, _S))
+
+CPM2(_e, _o, _m, _S)
+  _o P: -> CPM(_e, _o, _m, _S)
+
+
+#) Entrelace les symboles de la bande (pour laisser une cellule de controlle entre chaque symbole
+Interlace(_S)
+  ... <- P:'e <- P:'e -> GOEnd2(Print'('end, Print('m, GOPrev'('e, CPM('end, 'o, 'm, Interlace1(_S))))))
+
+Interlace1(_S)
+  ... P: -> Interlace2(_S)
+
+Interlace2(_S)
+  _a   P:'end <- Interlace3(_a, _S)
+  'end P: ->     Interlace2(_S)
+  'm   P:        GOPrev('o, Erase"(GOPrev'('e, _S)))
+
+Interlace3(_a, _S)
+  ...   <-            Interlace3(_a, _S)
+  'e -> P:'o          Interlace3(_a, _S)
+  'o    P: -> P:_a -> Interlace4(_S)
+
+Interlace4(_S)
+  'end P:'o -> Interlace2(_S)
+  ...  P:'o -> GONext('end, Interlace2(_S))
+
+
+

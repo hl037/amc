@@ -74,7 +74,7 @@ RE(_S, _B, _a, _b)
 RE1(_S, _B, _a, _b)
   ... P:_b  _S
 
-#) Remplace _a pr _b, puis ->_B
+#) Remplace _a par _b, puis ->_B
 RE(_B, _a, _b)
   ... RE(RE(_B, _a, _b), _B, _a, _b)
 

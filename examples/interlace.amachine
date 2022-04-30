@@ -1,0 +1,9 @@
+
+include(libstd)
+include(symb_letters)
+include(symb_LETTERS)
+include(symb_nums)
+include(symb_signs)
+
+init
+  Interlace(STOP(ACCEPT))

@@ -103,9 +103,9 @@ STATE_NAME : [A-Z] (~[ \t\n():,])*;
 
 T_SYMBOL_NAME : '_' SYMBOL_NAME;
 
-SYMBOL_NAME : '_' | ('\\(' | '\\)' | '\\\\' | ~[ \t\nA-Z_()] )('\\(' | '\\)' | '\\\\' | ~[ \t\n(),] )* ; // Tous les symboles sauf ceux qui peuvent poser problème (les parenthèse sont échappée)
+SYMBOL_NAME : '_' | ( ('\\' [A-Z0]) | '\\(' | '\\)' | '\\\\' | '\\,' | ~[ \t\nA-Z_(),] ) ('\\(' | '\\)' | '\\\\' | '\\,' | ~[ \t\n(),] )* ; // Tous les symboles sauf ceux qui peuvent poser problème (les parenthèse sont échappée)
 
 
-NL : (WS? '\n')+;
+NL : (WS? (('\r' '\n'?) | '\n'))+;
 WS : [ \t]+;
 

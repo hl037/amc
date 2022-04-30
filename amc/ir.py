@@ -46,9 +46,9 @@ class Dyn(object):
 
     def bind(self, ctx):
       ctx = {**self.ctx, **ctx}
-      return Bound(self.target, ctx)
+      return self.__class__(self.target, ctx)
 
-    def instanciate(self, ctx:Context):
+    def instanciate(self, ctx:Context={}):
       ctx = {**self.ctx, **ctx}
       return self.target.instanciate(ctx)
       
@@ -59,10 +59,6 @@ class Dyn(object):
   def bind(self, ctx:dict[str, IRNode]):
     return self.Bound(self, ctx)
 
-  def instanciate(self, ctx):
-    return self
-
-
 class Action(IRNode):
   """
   Action sur la bande
@@ -70,7 +66,11 @@ class Action(IRNode):
   pass
 
 class FinalAction(FinalIRNode, Action):
-  pass
+  def __repr__(self):
+    if self is Action.LEFT :
+      return '<Action <- >'
+    elif self is Action.RIGHT :
+      return '<Action -> >'
 
 Action.LEFT = FinalAction()
 Action.RIGHT = FinalAction()
@@ -81,6 +81,9 @@ class ActionPrint(FinalAction):
   """
   def __init__(self, symbol:str):
     self.symbol = symbol
+
+  def __repr__(self):
+    return f'<Action P:{self.symbol}>'
 
 class DynPrint(Dyn, Action):
   """
@@ -93,11 +96,20 @@ class DynPrint(Dyn, Action):
   def instanciate(self, ctx:Context):
     return ActionPrint(ctx[self.dyn_symbol])
 
+class StateReference(Dyn, IRNode):
+  """
+  Référence vers un état (stocke aussi la traduction de context)
+  """
+  class Bound(Dyn.Bound):
+    @property
+    def name(self):
+      return self.target.name
+
 class Rule(FinalIRNode):
   """
   Un règle
   """
-  def __init__(self, actions:list[FinalAction], finalState:'State'):
+  def __init__(self, actions:list[FinalAction], finalState:StateReference):
     self.actions = actions
     self._finalState = finalState
 
@@ -109,13 +121,58 @@ class DynRule(Dyn, IRNode):
   """
   
   """
-  def __init__(self, actions:list[FinalAction], finalState:'State'):
+  def __init__(self, actions:list[FinalAction], finalState:StateReference):
     self.actions = actions
     self.finalState = finalState
 
   def instanciate(self, ctx:Context={}) -> FinalIRNode:
     return Rule([ a.instanciate(ctx) for a in self.actions ], self.finalState.bind(ctx))
 
+class StatePlaceholder(StateReference):
+  """
+  Un placeholder pour un état
+  """
+  def __init__(self, ph_name:str):
+    self.ph_name = ph_name
+
+  def instanciate(self, ctx:Context):
+    rv = ctx.get(self.ph_name, None)
+    if rv is None :
+      raise RuntimeError('Oops, placeholder not in context. Should have been caught at ir building time')
+    while isinstance(rv, (Dyn.Bound, StateReference)) :
+      rv = rv.instanciate()
+    return rv
+
+  @property
+  def name(self):
+    return self.ph_name
+
+
+class StaticStateReference(StateReference):
+    
+  def __init__(self, state:'State', args:tuple[StateReference|str]):
+    self.state = state
+    self.args = args
+
+  def instanciate(self, ctx:Context={}):
+    return self.state.instanciate({
+      name: (
+        (
+          ctx[a]
+          if is_generic(a) else
+          a
+        )
+        if isinstance(a, str) else
+        a.bind(ctx)
+      )
+      for name, a in zip(self.state.args, self.args)
+    })
+
+  @property
+  def name(self):
+    name_args = ', '.join(f'{name}={getname(a)}' for name, a in zip(self.state.args, self.args) )
+    return f'{self.state.name}({name_args})'
+    
   
 
 class State(Dyn, IRNode):
@@ -125,10 +182,10 @@ class State(Dyn, IRNode):
   class Bound(Dyn.Bound):
     @property
     def name(self):
-      name_args = ', '.join(f'{a}={getname(self.target.ctx[a])}')
+      name_args = ', '.join(f'{a}={getname(self.ctx[a])}' for a in self.target.args)
       return f'{self.target.name}({name_args})'
 
-  def __init__(self, name:str, args:None|tuple[str], rules:dict[str, DynRule], default_symbol_name:str=None, default_rule:DynRule=None):
+  def __init__(self, name:str, args:tuple[str], rules:dict[str, DynRule], default_symbol_name:str=None, default_rule:DynRule=None):
     self.name = name
     if args is None :
       args = tuple()
@@ -136,18 +193,18 @@ class State(Dyn, IRNode):
     self.rules = rules
     self.default_symbol_name = default_symbol_name
     self.default_rule = default_rule
-  
+    
   def instanciate(self, ctx:Context={}) -> FinalIRNode:
-    if self.args is None :
+    if not len(self.args) :
       return self
-    scope = { ctx[a] for a in self.args }
-    name_args = ', '.join(f'{a}={getname(ctx[a])}')
+    scope = { a: ctx[a] for a in self.args }
+    name_args = ', '.join(f'{a}={getname(ctx[a])}' for a in self.args)
     return State(
-      f'{name}({name_args})',
-      None,
-      { scope.get(s, s): r.bind(scope) for s, r in self.rules },
+      f'{self.name}({name_args})',
+      tuple(),
+      { scope.get(s, s): r.bind(scope) for s, r in self.rules.items() },
       self.default_symbol_name,
-      self.default_rule.bind(scope)
+      self.default_rule.bind(scope) if self.default_rule is not None else None
     )
 
   def instanciate_rule(self, symbol) -> Rule:
@@ -162,10 +219,11 @@ class State(Dyn, IRNode):
     else :
       return r.instanciate()
         
-      
+  def __repr__(self):
+    return f'<State "{self.name}">'
     
-State.ACCEPT = State('ACCEPT()', None, [], None, None )
-State.REJECT = State('REJECT()', None, [], None, None )
+State.ACCEPT = State('ACCEPT()', None, {}, None, None )
+State.REJECT = State('REJECT()', None, {}, None, None )
     
 def getname(a:str|State|State.Bound):
   if isinstance(a, str) :
@@ -178,7 +236,7 @@ class AMachine(object):
   """
   Machine de turing
   """
-  def __init__(self, symbols:list[str]=[], states:list[State]=[], init_state:State=None):
+  def __init__(self, symbols:list[str]=[], states:list[State]=[], init_state:StateReference=None):
     self.symbols = symbols
     self.states = states
     self.init_state = init_state

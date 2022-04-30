@@ -1,0 +1,36 @@
+#) Machine qui écrit alternativement de 1 et de 0
+
+include(libstd)
+include(symb_nums)
+
+
+A
+  'm  P:     STOP(ACCEPT)
+  ... P:0 -> B
+
+B
+  'm  P:     STOP(ACCEPT)
+  ... P:1 -> A
+  
+Init(_S) #) 11 décalages vers la droite pour laisser une case vide pour marquer le début...
+  ... -> -> -> -> -> -> -> -> -> -> -> P:'e <- <- <- <- <- <- <- <- <- <- <- CPM(\0, 'o, 'e, GONext('e, Erase"(Unit(_S))))
+
+Unit(_S)
+  _a  P:'e <- GOPrev(\0, Unit1(_a, _S))
+
+Unit1(_a, _S) #) Marque du début, et écriture unité
+  ... <- <- <- <- <- <- <- <- <- <- P:'s -> P:_a Unit2(_S)
+
+Unit2(_S)
+  0  P:'m       GONext('e, Erase"(Ten(_S)))
+  _a P: -> P:_a Decr(Unit2(_S))
+
+Ten(_S)
+  _a P: <- GOPrev('m, Print(_a, Ten1(_S)))
+
+Ten1(_S)
+  0  P:'m                             GOPrev('s, Erase(_S))
+  _a P: -> -> -> -> -> -> -> -> -> -> P:_a Decr(Ten1(_S))
+
+init
+  Init(A)

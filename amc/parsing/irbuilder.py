@@ -21,6 +21,9 @@ class UnknownActionType(RuntimeError):
 class UnknownArgumentType(RuntimeError):
   pass
 
+class UnknownStopArgument(RuntimeError):
+  pass
+
 class NoInitialState(RuntimeError):
   def __init__(self):
     super().__init__('There is no initial state nor non-m-function state')
@@ -50,6 +53,10 @@ class MFunctionNotDefined(RuntimeError):
 class StateNotDefined(RuntimeError):
   def __init__(self, statedecl: ASTStateReference):
     super().__init__(statedecl.name)
+    
+class GenericSymbolNotDefined(RuntimeError):
+  def __init__(self, symbol: ASTSymbol|ASTNoSymbol):
+    super().__init__(repr(symbol.name))
 
 def stateNotDefined(state: ASTAbstractStateReference):
   if isinstance(state, ASTMFunctionReference) :
@@ -60,7 +67,6 @@ def stateNotDefined(state: ASTAbstractStateReference):
 class MultipleDefaultRules(RuntimeError):
   def __init__(self, state:State):
     super().__init__(f'In state {state.name}')
-
 
 class IRBuilder(object):
   """
@@ -165,7 +171,7 @@ class IRBuilder(object):
     d[mfuncdecl.signature] = State(
       mfuncdecl.name,
       [ a.name for a in mfuncdecl.args ],
-      [], None, None
+      {}, None, None
     ), mfuncdecl
 
   def visit1StateDecl(self, statedecl:ASTStateDecl):
@@ -175,8 +181,8 @@ class IRBuilder(object):
       raise StateAlreadyDefined(mf2)
     d[statedecl.signature] = State(
       statedecl.name,
-      None,
-      [], None, None
+      tuple(),
+      {}, None, None
     ), statedecl
 
   def visitInitial(self, initial:ASTInitial):
@@ -189,34 +195,56 @@ class IRBuilder(object):
       if not self.states :
         raise NoInitialState()
       init_decl = self.states[-1]
-      self.init_state, _ = self.state_cache[init_decl.name][init_decl.signature]
-    self.visitState(self.init_state, init_decl)
+      init_state, _ = self.state_cache[init_decl.name][init_decl.signature]
+      self.init_state = StaticStateReference(init_state, tuple())
+    self.visitState(self.init_state.state, init_decl)
 
   def visitState(self, state:State, decl:ASTStateDecl|ASTMFunctionDecl):
+    if state is State.ACCEPT or state is State.REJECT :
+      return
     if self.is_referenced(decl) :
       return
     self.reference(decl)
     for r in decl.rules : # type: ASTAbstractRule
       self.visitRule(state, r)
 
-  def resolveState(self, ref:ASTAbstractStateReference):
+  def resolveState(self, ref:ASTAbstractStateReference, ctx=set()) -> tuple[StateReference, ASTNode|None]:
+    if ref.name == 'STOP' :
+      try :
+        if len(ref.args) == 1 :
+          if ref.args[0].name == 'ACCEPT' :
+            return StaticStateReference(State.ACCEPT, tuple()), None
+          elif ref.args[0].name == 'REJECT' :
+            return StaticStateReference(State.REJECT, tuple()), None
+      except :
+        pass
+      raise UnknownStopArgument(repr(ref.args))
+    if isinstance(ref, ASTStateReference) and ref.name in ctx :
+      return StatePlaceholder(ref.name), None
     try :
       state, decl = self.state_cache[ref.name][ref.signature]
     except :
       raise stateNotDefined(ref)
     if isinstance(ref, ASTStateReference) :
       self.visitState(state, decl)
-      return state, decl
+      return StaticStateReference(state, tuple()), decl
     elif isinstance(ref, ASTMFunctionReference) :
+      args = []
       for a in ref.args :
         if isinstance(a, ASTAbstractStateReference) :
-          self.resolveState(a)
-        elif isinstance(a, ASTSymbol) :
+          ref2, _ = self.resolveState(a, ctx)
+          args.append(ref2)
+        elif isinstance(a, ASTAbstractSymbol) :
           if not a.is_generic :
-            self.symbol_cache.add(a)
+            self.symbol_cache.add(a.name)
+          else :
+            if a.name not in ctx :
+              raise GenericSymbolNotDefined(a)
+          args.append(a.name)
         else :
           raise UnknownArgumentType(a)
-      return state, decl
+      self.visitState(state, decl)
+      return StaticStateReference(state, tuple(args)), decl
     else :
       raise UnknownStateReferenceType(ref)
 
@@ -228,16 +256,23 @@ class IRBuilder(object):
     if symb.is_generic and symb.name not in state.args:
       if state.default_rule is not None :
         raise MultipleDefaultRules(state)
-      final_state, _ = self.resolveState(rule_decl.final_state)
+      ctx = set(state.args)
+      ctx.add(symb.name)
+      final_state, final_state_decl = self.resolveState(rule_decl.final_state, ctx)
       actions = [ self.visitAction(a) for a in rule_decl.actions ]
       state.default_rule = DynRule(actions, final_state)
       state.default_symbol_name = name
+      if not isinstance(final_state, StatePlaceholder) :
+        self.visitState(final_state.state, final_state_decl)
       return
-    if name is not None :
+    if name :
       self.symbol_cache.add(name)
-    final_state, _ = self.resolveState(rule_decl.final_state)
+    ctx = set(state.args)
+    final_state, final_state_decl = self.resolveState(rule_decl.final_state, ctx)
     actions = [ self.visitAction(a) for a in rule_decl.actions ]
     state.rules[name] = DynRule(actions, final_state)
+    if not isinstance(final_state, StatePlaceholder) :
+      self.visitState(final_state.state, final_state_decl)
 
   def visitAction(self, act:ASTAbstractAction):
     if isinstance(act, ASTActionLeft) :
@@ -245,7 +280,7 @@ class IRBuilder(object):
     elif isinstance(act, ASTActionRight) :
       return Action.RIGHT
     elif isinstance(act, ASTActionPrint) :
-      if act.symbol.is_generic() :
+      if act.symbol.is_generic :
         return DynPrint(act.symbol.name)
       else :
         return ActionPrint(act.symbol.name)
