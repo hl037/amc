@@ -172,3 +172,7 @@ La machine s'arrête en rejettant le mot si elle n'a pas de règle pour le symbo
 
 Le ruban est bi-infini (de nouvelles cases sont créées à la volée
 
+# Recompilation grammaire
+
+Pour recompiler la gammaire, exécuter le script `compile_g4.sh` à la racine du projet. Celui-ci génèrera le lexer et le parser.
+
