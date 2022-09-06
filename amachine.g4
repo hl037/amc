@@ -1,7 +1,7 @@
 
 grammar amachine;
 
-body : (stmt | NL+)*;
+body : (stmt | NL)*;
 
 stmt
   : include

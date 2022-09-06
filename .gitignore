@@ -49,5 +49,9 @@ wsdata
 htmlcov
 .coverage
 build
+*.java
+*.interp
+*.tokens
+.antlr
 
 _me_*
